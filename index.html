@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fast Like a Girl – Fasting Calendar</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+@media print {
+  /* Print gray backgrounds correctly */
+  .bg-gray-200 {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    background-color: #e5e7eb !important;
+  }
+
+  /* Hide everything by default */
+  body > div > *:not(#monthTitle):not(.weekday-headers):not(#calendar) {
+    display: none !important;
+  }
+
+  /* Remove body/container padding/margin for print */
+  body {
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  #monthTitle, .weekday-headers, #calendar {
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Optional: center month title */
+  #monthTitle {
+    text-align: center;
+    font-size: 1.2em;
+    margin-bottom: 0.3em !important;
+  }
+}
+
+
+</style>
+
+
+
+</head>
+<body class="bg-gray-50">
+<div class="p-6 max-w-5xl mx-auto font-sans">
+  <header class="mb-6">
+    <h1 class="text-2xl font-bold">Fast‑Like‑A‑Girl — Fasting Calendar</h1>
+    <p class="text-sm mt-1 text-gray-600">Enter your cycle info to generate daily phase & fasting recommendations. Not medical advice.</p>
+  </header>
+
+  <section class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+    <div>
+      <label class="block text-sm">Last period start</label>
+      <input id="lastPeriodStart" type="date" class="mt-1 p-2 border rounded w-full"/>
+    </div>
+    <div>
+      <label class="block text-sm">Cycle length (days)</label>
+      <input id="cycleLength" type="number" value="28" min="20" max="40" class="mt-1 p-2 border rounded w-full" />
+    </div>
+  </section>
+
+  <!-- Print button -->
+  <div class="mb-4 text-center">
+    <button onclick="window.print()" class="px-3 py-2 border rounded bg-white">Print Calendar</button>
+  </div>
+
+  <div id="monthTitle" class="text-lg font-semibold text-center mb-3"></div>
+
+<!-- Weekday headers -->
+<div class="weekday-headers grid grid-cols-7 gap-1 text-xs text-center mb-2 font-semibold">
+  <div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div>
+</div>
+
+  <div id="calendar" class="grid grid-cols-7 gap-2"></div>
+
+  <footer class="mt-6 text-sm text-gray-600">
+    <p><strong>Phase mapping:</strong> Power (days 1–10), Manifestation (11–15), Second Power (16–19), Nurture (day 20 through cycle end). Simplified logic inspired by <em>Fast Like a Girl</em> by Dr. Mindy Pelz.</p>
+  </footer>
+</div>
+
+<script>
+function getPhaseName(dayOfCycle) {
+  if (dayOfCycle >= 1 && dayOfCycle <= 10) return 'Power';
+  if (dayOfCycle >= 11 && dayOfCycle <= 15) return 'Manifestation';
+  if (dayOfCycle >= 16 && dayOfCycle <= 19) return 'Second Power';
+  return 'Nurture';
+}
+
+function getRecommendation(dayOfCycle, phase) {
+  if (phase === 'Power') {
+    if (dayOfCycle >= 1 && dayOfCycle <= 5) return '15 hours fasting';
+    if (dayOfCycle === 6) return '24 hours fasting';
+    if (dayOfCycle >= 7 && dayOfCycle <= 10) return '17 hours fasting';
+  } else if (phase === 'Manifestation') {
+    if (dayOfCycle >= 11 && dayOfCycle <= 15) return '15 hours fasting';
+  } else if (phase === 'Second Power') {
+    if (dayOfCycle === 16) return '24 hours fasting';
+    if (dayOfCycle >= 17 && dayOfCycle <= 19) return '17 hours fasting';
+  } else if (phase === 'Nurture') {
+    if (dayOfCycle >= 20 && dayOfCycle <= 28) return '13 hours fasting';
+  }
+  return '';
+}
+
+document.getElementById('lastPeriodStart').addEventListener('change', buildCalendar);
+
+// Set default to today
+document.getElementById('lastPeriodStart').value = new Date().toISOString().slice(0,10);
+
+function buildCalendar() {
+  const lastPeriodInput = document.getElementById('lastPeriodStart').value;
+  const [y, m, d] = lastPeriodInput.split('-').map(Number);
+  const lastPeriod = { year: y, month: m - 1, day: d };
+
+  const cycleLength = parseInt(document.getElementById('cycleLength').value);
+  const calendarEl = document.getElementById('calendar');
+  calendarEl.innerHTML = '';
+
+  const startDate = new Date(lastPeriod.year, lastPeriod.month, lastPeriod.day);
+  const monthName = startDate.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+  document.getElementById('monthTitle').innerText = monthName;
+
+  const firstWeekday = startDate.getDay();
+
+  // Blank cells if month doesn’t start on Sunday
+  for (let i = 0; i < firstWeekday; i++) {
+    const emptyCell = document.createElement('div');
+    calendarEl.appendChild(emptyCell);
+  }
+
+  for (let i = 0; i < 28; i++) {
+    const date = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate() + i);
+    const diffDays = Math.floor((date - new Date(lastPeriod.year, lastPeriod.month, lastPeriod.day)) / (1000*60*60*24));
+    const dayOfCycle = ((diffDays % cycleLength) + cycleLength) % cycleLength + 1;
+
+    const phase = getPhaseName(dayOfCycle);
+    const rec = getRecommendation(dayOfCycle, phase);
+
+    const box = document.createElement('div');
+    let bgClass = 'bg-white';
+    if (dayOfCycle >= 20 && dayOfCycle <= 28) bgClass = 'bg-gray-200'; // Nurture days
+
+    box.className = `p-2 min-h-[70px] border rounded text-xs flex flex-col ${bgClass}`;
+
+    const dateStr = `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
+
+    box.innerHTML = `
+      <div class="flex justify-start">
+        <span class="day-label font-semibold">Day ${dayOfCycle}</span>
+      </div>
+      <div class="date-text text-[10px] text-gray-500">${dateStr}</div>
+      <div class="phase-name mt-1 font-semibold">${phase}</div>
+      <div class="rec-text">${rec}</div>
+    `;
+    calendarEl.appendChild(box);
+  }
+}
+
+document.getElementById('lastPeriodStart').addEventListener('change', buildCalendar);
+buildCalendar();
+</script>
+</body>
+</html>
